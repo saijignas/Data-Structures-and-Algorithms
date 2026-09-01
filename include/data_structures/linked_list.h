@@ -8,6 +8,8 @@
 #pragma once
 
 #include <stdexcept>
+#include <unordered_set>
+#include <vector>
 
 template <typename T>
 class SinglyLinkedList {
@@ -85,16 +87,26 @@ private:
     };
 
     void clear() {
-        // Only safe to walk-and-delete when there's no cycle; tests that
-        // introduce a cycle don't rely on destruction afterward.
+        // Bounding the walk by size_ does NOT make this cycle-safe: a
+        // short cycle revisits an already-freed node well within that
+        // bound, which is a double-free. (Found by CI on a Linux glibc
+        // runner, which aborts on double-free; the old MinGW/Windows CRT
+        // allocator used for local testing silently tolerated it instead
+        // -- a real lesson in not trusting one platform's allocator to
+        // catch memory bugs.) Tracking visited addresses and stopping the
+        // moment a node would be revisited is correct for any cycle
+        // shape (self-loop, tail-to-head, tail-to-middle), and collecting
+        // every node before deleting any of them means the traversal
+        // itself never dereferences freed memory either.
+        std::unordered_set<Node*> seen;
+        std::vector<Node*> to_delete;
         Node* cur = head_;
-        std::size_t guard = 0;
-        while (cur && guard <= size_) {
-            Node* next = cur->next;
-            delete cur;
-            cur = next;
-            ++guard;
+        while (cur && seen.find(cur) == seen.end()) {
+            seen.insert(cur);
+            to_delete.push_back(cur);
+            cur = cur->next;
         }
+        for (Node* n : to_delete) delete n;
         head_ = nullptr;
     }
 
