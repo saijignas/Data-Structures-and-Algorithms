@@ -1,4 +1,5 @@
 # Data Structures & Algorithms (C++)
+![CI](https://github.com/saijignas/Data-Structures-and-Algorithms/actions/workflows/ci.yml/badge.svg)
 
 Core data structures and algorithms implemented from scratch in C++ —
 not wrappers around the standard library (no `std::vector`-backed
